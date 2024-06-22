@@ -226,7 +226,7 @@ module.exports = {
     } catch (error) {
       res
         .status(500)
-        .json({ status: false, message: "Erro interno do servidor." });
+        .json({ status: false, message: "Erro interno do servidor. " + error.message });
     }
   },
 };
