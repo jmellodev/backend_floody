@@ -1,0 +1,7 @@
+PORT = 3000
+MONGO_URL = mongodb+srv://
+SECRET = floodyflutter
+JWT_SECRET = a11e26e8ca285b657ade0a8aad7b66229b64817290266a11c3157849b094cd31ad55c22c4dcb3f0352b4600cd08da6d240ce5bd34c9bdcf28cfe3cc4a1d8fd8e
+JWT_EXPIRE = "21d"
+AUTH_EMAIL = email@gmail.com
+AUTH_PASSWORD = password_app_gmail
