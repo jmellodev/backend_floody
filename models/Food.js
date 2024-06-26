@@ -1,7 +1,7 @@
 const mongoose = require('mongoose');
 
 const FoodSchema = new mongoose.Schema({
-  title: { type: String, required: true },
+  title: { type: String, required: [true, "O nome é obrigatório."], },
   time: { type: String, required: true },
   foodTags: { type: Array, required: true },
   category: { type: String, required: true },

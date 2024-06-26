@@ -1,23 +1,90 @@
-const Food = require('../models/Food')
+const Food = require('../models/Food');
+require('dotenv').config(); // Para carregar as variáveis de ambiente do arquivo .env
+const uploadHelper = require('../helpers/uploadHelper');
+const createFieldChecker = require('../helpers/createFieldChecker');
+
+// Middleware para lidar com o upload de múltiplos arquivos
+const multipleUpload = uploadHelper('foods').array('imageUrl', 10); // 'imageUrls' deve ser o nome do campo de arquivos no formulário, e '10' é o número máximo de arquivos permitidos
+
+const requiredFields = ['title', 'foodTags', 'category', 'code', 'restaurant', 'description', 'time', 'price', 'additives'];
+const checkMissingFields = createFieldChecker(requiredFields);
 
 module.exports = {
   addFood: async (req, res) => {
-    const { title, foodTags, category, code, restaurant, description, time, price, additives, imageUrl } = req.body;
+    multipleUpload(req, res, async function (err) {
+      const missingFields = checkMissingFields(req.body);
 
-    if (!title || !foodTags || !category || !code || !restaurant || !description || !time || !price || !additives || !imageUrl) {
-      return res.status(400).json({ status: false, message: "You have a missing field" });
-    }
+      if (missingFields.length > 0) {
+        return res.status(400).json({ message: `Os seguintes campos estão faltando: ${missingFields.join(', ')}` });
+      }
+      if (err) {
+        return res.status(500).json({ message: err.message });
+      }
 
-    try {
-      const newFood = new Food(req.body);
+      const imageUrls = req.files ? req.files.map(file => file.location) : [];
 
-      await newFood.save();
+      try {
+        const newFood = new Food({
+          title: req.body.title,
+          foodTags: req.body.foodTags,
+          category: req.body.category,
+          code: req.body.code,
+          restaurant: req.body.restaurant,
+          description: req.body.description,
+          time: req.body.time,
+          price: req.body.price,
+          additives: req.body.additives,
+          imageUrls, // Array de URLs das imagens no S3
+        });
 
-      res.status(201).json({ status: true, message: "Food has been successfully added!" });
-    } catch (error) {
-      res.status(500).json({ status: false, message: error.message });
-    }
+        await newFood.save();
+
+        res.status(201).json({ message: "Food has been successfully added!" });
+      } catch (error) {
+        if (!res.headersSent) {
+          res.status(500).json({ message: error.message });
+        }
+      }
+    });
   },
+  /* addFood: async (req, res) => {
+    multipleUpload(req, res, async function (err) {
+      const { title, foodTags, category, code, restaurant, description, time, price, additives } = req.body;
+
+      if (!title || !foodTags || !category || !code || !restaurant || !description || !time || !price || !additives || !req.files) {
+        return res.status(400).json({ message: "Você tem um campo ausente" });
+      }
+
+      if (err) {
+        return res.status(500).json({ message: err.message })
+      }
+
+      const imageUrls = req.files.map(file => file.location);
+
+      try {
+        const newFood = new Food({
+          title,
+          foodTags,
+          category,
+          code,
+          restaurant,
+          description,
+          time,
+          price,
+          additives,
+          imageUrl: imageUrls, // Array de URLs das imagens no S3
+        });
+
+        await newFood.save();
+
+        res.status(201).json({ message: "A comida foi adicionada com sucesso!" });
+      } catch (error) {
+        if (!res.headersSent) {
+          res.status(500).json({ message: error.message });
+        }
+      }
+    })
+  }, */
 
   getFoodById: async (req, res) => {
     const foodId = req.params.id;
@@ -70,11 +137,11 @@ module.exports = {
     }
   },
 
-  getAllFoodsByCode: async (req,res) => {
+  getAllFoodsByCode: async (req, res) => {
     const code = req.params.code;
 
     try {
-      const foodList = await Food.find({code: code})
+      const foodList = await Food.find({ code: code })
 
       return res.status(200).json(foodList);
     } catch (error) {

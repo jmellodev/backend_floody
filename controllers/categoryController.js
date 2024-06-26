@@ -1,6 +1,69 @@
 const Category = require('../models/Category');
+const { S3Client } = require("@aws-sdk/client-s3");
+const { Upload } = require("@aws-sdk/lib-storage");
+const multer = require('multer');
+const multerS3 = require('multer-s3');
+require('dotenv').config();
+
+// Verificar as variáveis de ambiente
+const { AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, AWS_REGION, AWS_S3_BUCKET } = process.env;
+if (!AWS_ACCESS_KEY_ID || !AWS_SECRET_ACCESS_KEY || !AWS_REGION || !AWS_S3_BUCKET) {
+  throw new Error('One or more AWS environment variables are missing');
+}
+
+// Configuração do AWS SDK
+const s3 = new S3Client({
+  region: AWS_REGION,
+  credentials: {
+    accessKeyId: AWS_ACCESS_KEY_ID,
+    secretAccessKey: AWS_SECRET_ACCESS_KEY,
+  },
+});
+
+// Configuração do multer com multer-s3
+const upload = multer({
+  storage: multerS3({
+    s3: s3,
+    bucket: AWS_S3_BUCKET,
+    key: function (req, file, cb) {
+      cb(null, 'category/' + Date.now().toString() + '-' + file.originalname);
+    },
+  }),
+});
+
+// Middleware para lidar com o upload de arquivos
+const singleUpload = upload.single('imageUrl'); // 'imageUrl' deve ser o nome do campo do arquivo no formulário
 
 module.exports = {
+  createS3: async (req, res) => {
+    singleUpload(req, res, async function (err) {
+      if (err) {
+        return res.status(500).json({ status: false, message: err.message });
+      }
+
+      const { title, value } = req.body;
+
+      if (!title || !value || !req.file) {
+        return res.status(400).json({ status: false, message: "You have a missing field" });
+      }
+
+      try {
+        const newFood = new Category({
+          title,
+          value,
+          imageUrl: req.file.location, // URL da imagem no S3
+        });
+
+        await newFood.save();
+
+        res.status(201).json({ message: "Category has been successfully added! " + req.file.location });
+      } catch (error) {
+        if (!res.headersSent) {
+          res.status(500).json({ status: false, message: error.message });
+        }
+      }
+    });
+  },
   createCategory: async (reg, res) => {
     const newCategory = new Category(reg.body);
     try {
@@ -85,4 +148,6 @@ module.exports = {
       res.status(500).json({ status: false, message: error.message });
     }
   },
+
+
 };
